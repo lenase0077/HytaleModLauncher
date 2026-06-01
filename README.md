@@ -2,7 +2,6 @@
 
 A fast, lightweight, and completely standalone Mod Launcher for Hytale. Powered by PyQt6 and perfectly integrated with the **CurseForge API** to let you explore, download, and manage your mods without breaking a sweat.
 
-![Banner](https://github.com/lenase0077/HytaleModLauncher/assets/placeholder_banner.png)
 
 ## ⚡Features
 
