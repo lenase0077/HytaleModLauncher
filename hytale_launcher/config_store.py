@@ -58,3 +58,11 @@ def save_theme(theme_name: str) -> None:
     data = load()
     data["theme"] = theme_name
     save(data)
+
+def load_language() -> str:
+    return load().get("language") or "en"
+
+def save_language(lang: str) -> None:
+    data = load()
+    data["language"] = lang
+    save(data)

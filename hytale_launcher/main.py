@@ -50,7 +50,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from hytale_launcher import assets_manager, config_store, lockfile_store
+from hytale_launcher import assets_manager, config_store, lockfile_store, i18n
 from hytale_launcher.curseforge_client import CurseForgeClient, SEARCH_PAGE_SIZE
 from hytale_launcher.mod_installer import ModInstaller
 from hytale_launcher.models import Category, FingerprintMatch, Mod, ModFile
@@ -84,8 +84,8 @@ def _btn(parent: QWidget, text: str, obj: str = "", width: int | None = None, ic
 # ── Data ──────────────────────────────────────────────────────────────────────
 @dataclass(frozen=True)
 class SortOption:
-    label: str; field: int; order: str
-    def __str__(self) -> str: return self.label
+    label_key: str; field: int; order: str
+    def __str__(self) -> str: return i18n.tr(self.label_key)
 
 
 @dataclass(frozen=True)
@@ -194,7 +194,7 @@ class ScanWorker(QRunnable):
                 self.signals.result.emit(ScanResult([], []))
                 return
 
-            self.signals.status.emit(f"Calculando fingerprints de {len(unmanaged)} archivos…")
+            self.signals.status.emit(i18n.tr("scan_fp", len(unmanaged)))
             fp_map: dict[int, Path] = {}
             failed: list[Path]      = []
             for path in unmanaged:
@@ -207,7 +207,7 @@ class ScanWorker(QRunnable):
             matched_fps: set[int] = set()
 
             if fp_map:
-                self.signals.status.emit("Consultando CurseForge fingerprint API…")
+                self.signals.status.emit(i18n.tr("scan_api"))
                 try:
                     matches = self._client.get_mods_by_fingerprints(list(fp_map.keys()))
                     if matches:
@@ -244,8 +244,7 @@ class CheckUpdatesWorker(QRunnable):
             total  = len(self._refs)
             for i, ref in enumerate(self._refs, 1):
                 self.signals.status.emit(
-                    f"Revisando actualizaciones {i}/{total}: "
-                    f"{ref.mod_name or ref.file_name}…"
+                    i18n.tr("chk_item", i, total, ref.mod_name or ref.file_name)
                 )
                 latest = self._client.get_latest_file_for_mod(ref.mod_id)
                 if latest and latest.id > ref.file_id:
@@ -379,7 +378,7 @@ class InstalledModRow(QFrame):
         name_row.addWidget(name)
 
         if not self.ref.is_managed or self.ref.mod_id == 0:
-            ext = QLabel("Externo")
+            ext = QLabel(i18n.tr("row_ext"))
             ext.setStyleSheet(
                 f"background-color:rgba(71,85,105,0.2); color:{self.palette.text3};"
                 f"border:1px solid rgba(71,85,105,0.3); border-radius:5px;"
@@ -388,7 +387,7 @@ class InstalledModRow(QFrame):
             name_row.addWidget(ext)
 
         if self.update_file:
-            upd = QLabel("Actualización")
+            upd = QLabel(i18n.tr("row_upd_badge"))
             upd.setStyleSheet(
                 f"background-color:rgba(129,140,248,0.15); color:{self.palette.purple};"
                 f"border:1px solid rgba(129,140,248,0.3); border-radius:5px;"
@@ -405,7 +404,7 @@ class InstalledModRow(QFrame):
         lo.addLayout(info, stretch=1)
 
         # Status badge
-        status_txt = "Activo" if self.ref.enabled else "Desactivado"
+        status_txt = i18n.tr("row_active") if self.ref.enabled else i18n.tr("row_inactive")
         status = QLabel(status_txt)
         status.setAlignment(Qt.AlignmentFlag.AlignCenter)
         status.setFixedWidth(85)
@@ -424,7 +423,7 @@ class InstalledModRow(QFrame):
         lo.addWidget(status)
 
         if self.update_file:
-            upd_btn = _btn(self, "Actualizar", icon="circle-arrow-up")
+            upd_btn = _btn(self, i18n.tr("row_upd_btn"), icon="circle-arrow-up")
             upd_btn.setStyleSheet(
                 f"background-color:rgba(129,140,248,0.12); color:{self.palette.purple};"
                 f"border:1px solid rgba(129,140,248,0.3); border-radius:6px;"
@@ -441,14 +440,12 @@ class InstalledModRow(QFrame):
         )
         lo.addWidget(toggle)
 
-        # Remove button: explicit inline style so it never gets hidden by QSS bugs
-        rem = _btn(self, "Remover", width=95, icon="trash-2")
+        rem = _btn(self, i18n.tr("card_remove"), width=95, icon="trash-2")
         rem.setStyleSheet(
             f"background-color: {self.palette.red}; color: #FFFFFF;"
             f"border: 1px solid {self.palette.red}; border-radius: 8px;"
             f"padding: 6px 12px; font-weight: 700;"
         )
-        rem.setToolTip("Remover este mod")
         rem.clicked.connect(lambda: self.remove_requested.emit(self.ref.mod_id))
         lo.addWidget(rem)
 
@@ -480,15 +477,15 @@ class InstalledPanel(QWidget):
         hlo.setContentsMargins(24, 14, 24, 14)
         hlo.setSpacing(4)
         title_row = QHBoxLayout()
-        self._title = QLabel("Mis Mods")
+        self._title = QLabel(i18n.tr("tab_installed"))
         self._title.setObjectName("installedTitle")
         title_row.addWidget(self._title)
         title_row.addStretch()
-        self._count_badge = QLabel("0 mods")
+        self._count_badge = QLabel("")
         self._count_badge.setObjectName("badgeLabel")
         title_row.addWidget(self._count_badge)
         hlo.addLayout(title_row)
-        sub = QLabel("Activá, desactivá y actualizá tus mods desde aquí.")
+        sub = QLabel(i18n.tr("inst_subtitle"))
         sub.setObjectName("installedSubtitle")
         hlo.addWidget(sub)
         root.addWidget(hdr)
@@ -498,16 +495,16 @@ class InstalledPanel(QWidget):
         blo = QHBoxLayout(bar)
         blo.setContentsMargins(24, 8, 24, 8)
         blo.setSpacing(8)
-        self._scan_btn = _btn(bar, "Escanear carpeta", icon="refresh-cw")
-        self._scan_btn.setToolTip("Detecta .jar en la carpeta no instalados por esta herramienta")
+        self._scan_btn = _btn(bar, i18n.tr("inst_scan"), icon="refresh-cw")
+        self._scan_btn.setToolTip(i18n.tr("inst_scan_tt"))
         self._scan_btn.clicked.connect(self._on_scan)
         blo.addWidget(self._scan_btn)
-        self._check_btn = _btn(bar, "Revisar actualizaciones", icon="search")
-        self._check_btn.setToolTip("Busca nuevas versiones en CurseForge")
+        self._check_btn = _btn(bar, i18n.tr("inst_check"), icon="search")
+        self._check_btn.setToolTip(i18n.tr("inst_check_tt"))
         self._check_btn.clicked.connect(self._on_check_updates)
         blo.addWidget(self._check_btn)
         blo.addStretch()
-        self._update_all_btn = _btn(bar, "Actualizar todo", "updateAllBtn", icon="circle-arrow-up")
+        self._update_all_btn = _btn(bar, i18n.tr("inst_upd_all"), "updateAllBtn", icon="circle-arrow-up")
         self._update_all_btn.setVisible(False)
         self._update_all_btn.clicked.connect(self._on_update_all)
         blo.addWidget(self._update_all_btn)
@@ -538,19 +535,18 @@ class InstalledPanel(QWidget):
             lf = lockfile_store.Lockfile()
 
         refs = list(lf.mods.values())
-        self._count_badge.setText(f"{len(refs)} mod{'s' if len(refs) != 1 else ''}")
+        if len(refs) == 1:
+            self._count_badge.setText(i18n.tr("inst_count_one"))
+        else:
+            self._count_badge.setText(i18n.tr("inst_count_many", len(refs)))
 
         n_updates = sum(1 for r in refs if r.mod_id in self._update_map)
         self._update_all_btn.setVisible(n_updates > 0)
         if n_updates > 0:
-            self._update_all_btn.setText(f"Actualizar todo ({n_updates})")
+            self._update_all_btn.setText(i18n.tr("inst_upd_all_fmt", n_updates))
 
         if not refs:
-            empty = QLabel(
-                "No hay mods instalados todavía.\n"
-                "Explorá y añadí mods desde la pestaña Explorar,\n"
-                "o usá 'Escanear carpeta' para importar mods existentes."
-            )
+            empty = QLabel(i18n.tr("inst_empty"))
             empty.setObjectName("emptyState")
             empty.setAlignment(Qt.AlignmentFlag.AlignCenter)
             self._list_lo.insertWidget(0, empty)
@@ -571,7 +567,7 @@ class InstalledPanel(QWidget):
     def _on_scan(self):
         if self._busy: return
         self._set_panel_busy(True)
-        self.status_message.emit("Escaneando carpeta de mods…")
+        self.status_message.emit(i18n.tr("scan_busy"))
         w = ScanWorker(self._client, self._get_dir())
         w.signals.result.connect(self._on_scan_done)
         w.signals.error.connect(self._on_error)
@@ -584,12 +580,8 @@ class InstalledPanel(QWidget):
         total = len(result.recognized) + len(result.unrecognized)
 
         if total == 0:
-            self.status_message.emit("No se encontraron mods nuevos en la carpeta.")
-            QMessageBox.information(
-                self, "Escaneo completado",
-                "No se encontraron archivos .jar nuevos.\n"
-                "Todos los mods ya están rastreados."
-            )
+            self.status_message.emit(i18n.tr("scan_none"))
+            QMessageBox.information(self, i18n.tr("scan_done_title"), i18n.tr("scan_none_msg"))
             return
 
         mods_dir = self._get_dir()
@@ -617,18 +609,15 @@ class InstalledPanel(QWidget):
 
             lockfile_store.save(mods_dir, lf)
         except Exception as exc:
-            QMessageBox.critical(self, "Error al importar", str(exc))
+            QMessageBox.critical(self, i18n.tr("scan_err_imp"), str(exc))
             return
 
         self.reload()
         self.refresh_needed.emit()
-        msg = (
-            f"Se importaron {total} mod(s):\n\n"
-            f"• {len(result.recognized)} reconocido(s) por CurseForge\n"
-            f"• {len(result.unrecognized)} externo(s) (sin info de versión)"
-        )
-        self.status_message.emit(f"Importados {total} mods ({len(result.recognized)} reconocidos)")
-        QMessageBox.information(self, "Escaneo completado", msg)
+        
+        msg = i18n.tr("scan_res_msg", total, len(result.recognized), len(result.unrecognized))
+        self.status_message.emit(i18n.tr("scan_res_status", total, len(result.recognized)))
+        QMessageBox.information(self, i18n.tr("scan_done_title"), msg)
 
     # ── Check updates ─────────────────────────────────────────────────────────
     def _on_check_updates(self):
@@ -641,13 +630,11 @@ class InstalledPanel(QWidget):
         managed = [r for r in refs if r.mod_id > 0 and r.is_managed]
         if not managed:
             QMessageBox.information(
-                self, "Sin mods gestionados",
-                "No hay mods instalados por esta herramienta para verificar.\n"
-                "Instalá mods desde Explorar o importalos con 'Escanear carpeta'."
+                self, i18n.tr("chk_no_managed_title"), i18n.tr("chk_no_managed")
             )
             return
         self._set_panel_busy(True)
-        self.status_message.emit(f"Revisando actualizaciones para {len(managed)} mods…")
+        self.status_message.emit(i18n.tr("chk_busy", len(managed)))
         w = CheckUpdatesWorker(self._client, managed)
         w.signals.result.connect(self._on_updates_checked)
         w.signals.error.connect(self._on_error)
@@ -661,11 +648,10 @@ class InstalledPanel(QWidget):
         self.reload()
         n = len(result.updates)
         if n == 0:
-            self.status_message.emit("Todos los mods están actualizados ✓")
-            QMessageBox.information(self, "Actualizaciones",
-                                    "Todos tus mods están en la última versión.")
+            self.status_message.emit(i18n.tr("chk_ok_status"))
+            QMessageBox.information(self, i18n.tr("chk_ok_title"), i18n.tr("chk_ok_msg"))
         else:
-            self.status_message.emit(f"{n} actualización(es) disponible(s)")
+            self.status_message.emit(i18n.tr("chk_avail", n))
 
     # ── Update one / all ──────────────────────────────────────────────────────
     @pyqtSlot(int, object)
@@ -678,7 +664,7 @@ class InstalledPanel(QWidget):
             ref = None
         mod_name = (ref.mod_name if ref else None) or f"Mod {mod_id}"
         self._set_panel_busy(True)
-        self.status_message.emit(f"Actualizando {mod_name}…")
+        self.status_message.emit(i18n.tr("upd_busy", mod_name))
         w = UpdateOneWorker(self._client, mod_id, mod_name, new_file, mods_dir)
         w.signals.result.connect(self._on_update_one_done)
         w.signals.error.connect(self._on_error)
@@ -692,7 +678,7 @@ class InstalledPanel(QWidget):
         self._set_panel_busy(False)
         self.reload()
         self.refresh_needed.emit()
-        self.status_message.emit("Mod actualizado ✓")
+        self.status_message.emit(i18n.tr("upd_done"))
 
     def _on_update_all(self):
         if self._busy or not self._update_map: return
@@ -704,7 +690,7 @@ class InstalledPanel(QWidget):
             self._set_panel_busy(False)
             self._update_map.clear()
             self.reload(); self.refresh_needed.emit()
-            self.status_message.emit("Todos los mods actualizados ✓")
+            self.status_message.emit(i18n.tr("upd_all_done"))
             return
         mod_id, new_file = self._update_all_queue.pop(0)
         try:
@@ -713,7 +699,7 @@ class InstalledPanel(QWidget):
             ref = None
         mod_name = (ref.mod_name if ref else None) or f"Mod {mod_id}"
         self._set_panel_busy(True)
-        self.status_message.emit(f"Actualizando {mod_name}…")
+        self.status_message.emit(i18n.tr("upd_busy", mod_name))
         w = UpdateOneWorker(self._client, mod_id, mod_name, new_file, self._get_dir())
         w.signals.result.connect(lambda mid: (self._save_updated_file_id(mid), self._process_next_update()))
         w.signals.error.connect(self._on_error)
@@ -747,7 +733,7 @@ class InstalledPanel(QWidget):
             lockfile_store.save(mods_dir, lf)
             self.reload(); self.refresh_needed.emit()
         except Exception as exc:
-            QMessageBox.critical(self, "Error", str(exc))
+            QMessageBox.critical(self, i18n.tr("err_title"), str(exc))
 
     def _on_remove(self, mod_id: int):
         mods_dir = self._get_dir()
@@ -764,12 +750,12 @@ class InstalledPanel(QWidget):
             self._update_map.pop(mod_id, None)
             self.reload(); self.refresh_needed.emit()
         except Exception as exc:
-            QMessageBox.critical(self, "Error", str(exc))
+            QMessageBox.critical(self, i18n.tr("err_title"), str(exc))
 
     def _on_error(self, msg: str):
         self._set_panel_busy(False)
-        self.status_message.emit(f"Error: {msg}")
-        QMessageBox.critical(self, "Error", msg)
+        self.status_message.emit(f"{i18n.tr('err_title')}: {msg}")
+        QMessageBox.critical(self, i18n.tr("err_title"), msg)
 
     def _set_panel_busy(self, busy: bool):
         self._busy = busy
@@ -804,7 +790,7 @@ class ModCard(QFrame):
         name.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
         hdr.addWidget(name)
         if installed:
-            badge = QLabel("Instalado")
+            badge = QLabel(i18n.tr("card_installed"))
             badge.setStyleSheet(
                 f"background:rgba(16,185,129,0.15); color:{self.palette.green};"
                 f"font-weight:700; border-radius:6px; padding:2px 8px; font-size:8pt;"
@@ -833,10 +819,12 @@ class ModCard(QFrame):
         btns = QHBoxLayout()
         btns.setSpacing(6)
         if installed:
-            b1 = _btn(self, "Reinstalar", width=95, icon="refresh-cw")
+            b1 = _btn(self, i18n.tr("card_reinstall"), icon="refresh-cw")
+            b1.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
             b1.clicked.connect(lambda: self.install_requested.emit(self.mod))
             btns.addWidget(b1)
-            b2 = _btn(self, "Remover", width=95, icon="trash-2")
+            b2 = _btn(self, i18n.tr("card_remove"), icon="trash-2")
+            b2.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
             b2.setStyleSheet(
                 f"background-color: {self.palette.red}; color: #FFFFFF;"
                 f"border: 1px solid {self.palette.red}; border-radius: 8px;"
@@ -845,8 +833,8 @@ class ModCard(QFrame):
             b2.clicked.connect(lambda: self.remove_requested.emit(self.mod))
             btns.addWidget(b2)
         else:
-            # Inline styles guarantee this button is rendered, regardless of Qt bugs!
-            b1 = _btn(self, "Añadir", width=95, icon="plus")
+            b1 = _btn(self, i18n.tr("card_add"), icon="plus")
+            b1.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
             b1.setStyleSheet(
                 f"background-color: {self.palette.green}; color: #000000;"
                 f"border: 1px solid {self.palette.green}; border-radius: 8px;"
@@ -855,10 +843,10 @@ class ModCard(QFrame):
             b1.clicked.connect(lambda: self.install_requested.emit(self.mod))
             btns.addWidget(b1)
 
-        bw = _btn(self, "Ver web", width=90, icon="external-link")
+        bw = _btn(self, i18n.tr("card_web"), icon="external-link")
+        bw.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         bw.clicked.connect(lambda: self.web_requested.emit(self.mod))
         btns.addWidget(bw)
-        btns.addStretch()
         lo.addLayout(btns)
 
     def set_image(self, px: QPixmap):
@@ -867,14 +855,14 @@ class ModCard(QFrame):
         self.img_label.setText("")
         self.img_label.setPixmap(scaled)
 
-    def set_image_error(self): self.img_label.setText("Sin img")
+    def set_image_error(self): self.img_label.setText(i18n.tr("card_no_img"))
 
 
 # ── File picker dialog ────────────────────────────────────────────────────────
 class FilePickerDialog(QDialog):
     def __init__(self, mod: Mod, files: list[ModFile], parent=None):
         super().__init__(parent)
-        self.setWindowTitle(f"Versión — {mod.name}")
+        self.setWindowTitle(i18n.tr("dlg_ver_title", mod.name))
         self.setMinimumWidth(560)
         self.setModal(True)
         self._files    = files
@@ -882,7 +870,7 @@ class FilePickerDialog(QDialog):
         lo = QVBoxLayout(self)
         lo.setContentsMargins(20, 20, 20, 20)
         lo.setSpacing(12)
-        lo.addWidget(QLabel(f"Elegí la versión para instalar de:\n{_ellipsize(mod.name, 60)}"))
+        lo.addWidget(QLabel(i18n.tr("dlg_ver_msg", _ellipsize(mod.name, 60))))
         self._combo = QComboBox()
         for f in files:
             self._combo.addItem(str(f))
@@ -924,16 +912,16 @@ class ExplorePanel(QWidget):
         self.sort_combo = QComboBox(); r1.addWidget(self.sort_combo)
         self.cat_combo  = QComboBox(); r1.addWidget(self.cat_combo)
         self.search_entry = QLineEdit()
-        self.search_entry.setPlaceholderText("Buscar mods en CurseForge…")
+        self.search_entry.setPlaceholderText(i18n.tr("search_ph"))
         r1.addWidget(self.search_entry, stretch=1)
-        self.search_btn = _btn(strip, "Buscar", "accentBtn", width=100, icon="search")
+        self.search_btn = _btn(strip, i18n.tr("search_btn"), "accentBtn", width=100, icon="search")
         r1.addWidget(self.search_btn)
         slo.addLayout(r1)
 
         r2 = QHBoxLayout(); r2.setSpacing(8)
         self.prev_btn = _btn(strip, "", width=44, icon="chevron-left")
         r2.addWidget(self.prev_btn)
-        self.page_lbl = QLabel("Página 1/1")
+        self.page_lbl = QLabel(i18n.tr("page_fmt", 1, 1))
         self.page_lbl.setObjectName("pageLabel")
         self.page_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         r2.addWidget(self.page_lbl)
@@ -958,6 +946,7 @@ class ExplorePanel(QWidget):
 class SettingsPanel(QWidget):
     theme_changed = pyqtSignal(str)
     dir_changed   = pyqtSignal(str)
+    lang_changed  = pyqtSignal(str)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -970,15 +959,34 @@ class SettingsPanel(QWidget):
         root.setContentsMargins(40, 40, 40, 40)
         root.setSpacing(24)
 
-        title = QLabel("Configuración")
+        title = QLabel(i18n.tr("set_title"))
         title.setStyleSheet("font-size: 20pt; font-weight: bold;")
         root.addWidget(title)
+
+        # Language Section
+        l_group = QWidget()
+        l_lo = QVBoxLayout(l_group)
+        l_lo.setContentsMargins(0, 0, 0, 0)
+        l_lo.addWidget(QLabel(i18n.tr("set_lang")))
+        self.lang_combo = QComboBox()
+        self.lang_combo.setFixedWidth(200)
+        self.lang_combo.addItem("English", "en")
+        self.lang_combo.addItem("Español", "es")
+        
+        current_lang = config_store.load_language()
+        idx = self.lang_combo.findData(current_lang)
+        if idx >= 0:
+            self.lang_combo.setCurrentIndex(idx)
+            
+        self.lang_combo.currentIndexChanged.connect(self._on_lang)
+        l_lo.addWidget(self.lang_combo)
+        root.addWidget(l_group)
 
         # Theme Section
         t_group = QWidget()
         t_lo = QVBoxLayout(t_group)
         t_lo.setContentsMargins(0, 0, 0, 0)
-        t_lo.addWidget(QLabel("Tema Visual:"))
+        t_lo.addWidget(QLabel(i18n.tr("set_theme")))
         self.theme_combo = QComboBox()
         self.theme_combo.setFixedWidth(200)
         for t in THEMES.keys():
@@ -992,13 +1000,13 @@ class SettingsPanel(QWidget):
         f_group = QWidget()
         f_lo = QVBoxLayout(f_group)
         f_lo.setContentsMargins(0, 0, 0, 0)
-        f_lo.addWidget(QLabel("Carpeta de Mods de Hytale:"))
+        f_lo.addWidget(QLabel(i18n.tr("set_folder")))
         f_row = QHBoxLayout()
         self.folder_entry = QLineEdit()
         self.folder_entry.setText(config_store.load_mods_dir())
         self.folder_entry.editingFinished.connect(self._on_dir_edit)
         f_row.addWidget(self.folder_entry)
-        btn = _btn(f_group, "Examinar...", icon="folder")
+        btn = _btn(f_group, i18n.tr("set_browse"), icon="folder")
         btn.clicked.connect(self._on_browse)
         f_row.addWidget(btn)
         f_lo.addLayout(f_row)
@@ -1006,12 +1014,18 @@ class SettingsPanel(QWidget):
 
         root.addStretch()
 
+    def _on_lang(self, idx: int):
+        lang = self.lang_combo.itemData(idx)
+        if lang:
+            config_store.save_language(lang)
+            self.lang_changed.emit(lang)
+
     def _on_theme(self, name: str):
         config_store.save_theme(name)
         self.theme_changed.emit(name)
 
     def _on_browse(self):
-        d = QFileDialog.getExistingDirectory(self, "Carpeta de mods", self.folder_entry.text())
+        d = QFileDialog.getExistingDirectory(self, i18n.tr("set_folder_title"), self.folder_entry.text())
         if d:
             self.folder_entry.setText(d)
             self._on_dir_edit()
@@ -1030,7 +1044,6 @@ class LauncherWindow(QMainWindow):
         self.setMinimumSize(1240, 760)
         self.resize(1320, 820)
         
-        # Prefetch icons in background
         assets_manager.prefetch_icons()
 
         self._client = CurseForgeClient(CURSEFORGE_API_KEY)
@@ -1043,16 +1056,15 @@ class LauncherWindow(QMainWindow):
         self._installed: dict[int, lockfile_store.InstalledModRef] = {}
         self._cards: list[ModCard] = []
         self._sort_opts = [
-            SortOption("Popularity",           2, "desc"),
-            SortOption("Recién actualizados",  3, "desc"),
-            SortOption("Total descargas",      6, "desc"),
-            SortOption("Nombre",               4, "asc"),
+            SortOption("sort_pop", 2, "desc"),
+            SortOption("sort_upd", 3, "desc"),
+            SortOption("sort_dl",  6, "desc"),
+            SortOption("sort_name",4, "asc"),
         ]
-        self._cat_opts: list[CategoryOption] = [CategoryOption(None, "Todas las categorías")]
+        self._cat_opts: list[CategoryOption] = [CategoryOption(None, i18n.tr("cat_all"))]
         self._page = 0; self._total = 0; self._page_size = SEARCH_PAGE_SIZE
         self._busy = False; self._cols = 3
         
-        # Load theme
         self._palette = THEMES.get(config_store.load_theme(), THEMES["Dark"])
 
         self._build_ui()
@@ -1083,32 +1095,33 @@ class LauncherWindow(QMainWindow):
         tc = QVBoxLayout(); tc.setSpacing(0)
         tr = QHBoxLayout(); tr.setSpacing(4)
         t = QLabel("Hytale Mod"); t.setObjectName("appTitle")
-        a = QLabel(" Launcher"); a.setObjectName("accentWord")
+        a = QLabel(" " + i18n.tr("app_title")); a.setObjectName("accentWord")
         tr.addWidget(t); tr.addWidget(a); tr.addStretch()
         tc.addStretch(); tc.addLayout(tr)
-        self._status_lbl = QLabel("Listo"); self._status_lbl.setObjectName("statusLabel")
+        self._status_lbl = QLabel(i18n.tr("status_ready")); self._status_lbl.setObjectName("statusLabel")
         tc.addWidget(self._status_lbl); tc.addStretch()
         hlo.addLayout(tc, stretch=1)
-        badge = QLabel("  CurseForge  "); badge.setObjectName("badgeLabel")
-        hlo.addWidget(badge)
+        badge = QLabel("Powered by CurseForge")
+        badge.setStyleSheet("color: #64748B; font-weight: 600; font-size: 9pt;")
+        hlo.addWidget(badge, alignment=Qt.AlignmentFlag.AlignVCenter)
         root.addWidget(hdr)
 
         # Tab bar
         tab_bar = QWidget(); tab_bar.setObjectName("tabBar"); tab_bar.setFixedHeight(46)
         tlo = QHBoxLayout(tab_bar); tlo.setContentsMargins(16, 0, 0, 0); tlo.setSpacing(0)
-        self._tab_explore = QPushButton("Explorar")
+        self._tab_explore = QPushButton(i18n.tr("tab_explore"))
         self._tab_explore.setIcon(assets_manager.get_icon("search"))
         self._tab_explore.setObjectName("tabBtnActive")
         self._tab_explore.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
         self._tab_explore.clicked.connect(lambda: self._switch_tab(0))
         
-        self._tab_installed = QPushButton("Mis Mods")
+        self._tab_installed = QPushButton(i18n.tr("tab_installed"))
         self._tab_installed.setIcon(assets_manager.get_icon("package"))
         self._tab_installed.setObjectName("tabBtn")
         self._tab_installed.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
         self._tab_installed.clicked.connect(lambda: self._switch_tab(1))
         
-        self._tab_settings = QPushButton("Configuración")
+        self._tab_settings = QPushButton(i18n.tr("tab_settings"))
         self._tab_settings.setIcon(assets_manager.get_icon("settings"))
         self._tab_settings.setObjectName("tabBtn")
         self._tab_settings.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
@@ -1131,10 +1144,11 @@ class LauncherWindow(QMainWindow):
         self._settings = SettingsPanel()
         self._settings.theme_changed.connect(self._on_theme_changed)
         self._settings.dir_changed.connect(self._on_dir_changed)
+        self._settings.lang_changed.connect(self._on_lang_changed)
         self._stack.addWidget(self._settings)
         root.addWidget(self._stack, stretch=1)
 
-        self.statusBar().showMessage("Listo")
+        self.statusBar().showMessage(i18n.tr("status_ready"))
 
     def _apply_theme(self):
         qss = generate_qss(self._palette)
@@ -1145,7 +1159,6 @@ class LauncherWindow(QMainWindow):
     def _on_theme_changed(self, theme_name: str):
         self._palette = THEMES.get(theme_name, THEMES["Dark"])
         self._apply_theme()
-        # Redraw cards and list to update inline styles
         self._render_cards()
         self._installed_panel.reload()
 
@@ -1153,6 +1166,9 @@ class LauncherWindow(QMainWindow):
         self._refresh_installed()
         self._render_cards()
         self._installed_panel.reload()
+
+    def _on_lang_changed(self, lang: str):
+        QMessageBox.information(self, i18n.tr("info_title"), i18n.tr("restart_msg"))
 
     def _switch_tab(self, idx: int):
         self._stack.setCurrentIndex(idx)
@@ -1206,13 +1222,13 @@ class LauncherWindow(QMainWindow):
     def _load_categories(self):
         w = CategoryWorker(self._client)
         w.signals.result.connect(self._on_cats)
-        w.signals.error.connect(lambda e: self._set_status(f"Error categorías: {e}"))
+        w.signals.error.connect(lambda e: self._set_status(f"{i18n.tr('err_title')}: {e}"))
         self._pool.start(w)
 
     @pyqtSlot(object)
     def _on_cats(self, cats: list[Category]):
         cur = self._explore.cat_combo.currentText()
-        self._cat_opts = [CategoryOption(None, "Todas las categorías")]
+        self._cat_opts = [CategoryOption(None, i18n.tr("cat_all"))]
         self._cat_opts.extend(CategoryOption(c.id, c.name) for c in cats)
         cb = self._explore.cat_combo
         cb.blockSignals(True); cb.clear()
@@ -1224,7 +1240,7 @@ class LauncherWindow(QMainWindow):
     def _search(self, reset_page: bool):
         if self._busy: return
         if reset_page: self._page = 0
-        self._set_busy(True, "Buscando mods…")
+        self._set_busy(True, i18n.tr("searching"))
         q   = self._explore.search_entry.text().strip()
         ci  = self._explore.cat_combo.currentIndex()
         cat = self._cat_opts[ci] if 0 <= ci < len(self._cat_opts) else self._cat_opts[0]
@@ -1242,12 +1258,12 @@ class LauncherWindow(QMainWindow):
         self._page_size = result.pagination.page_size or SEARCH_PAGE_SIZE
         self._refresh_installed()
         self._render_cards(); self._update_pager()
-        self._set_busy(False, f"Mostrando {len(self._mods)} resultado(s)")
+        self._set_busy(False, i18n.tr("results_fmt", len(self._mods)))
 
     @pyqtSlot(str)
     def _on_search_error(self, msg: str):
-        self._set_busy(False, "Error en búsqueda")
-        QMessageBox.critical(self, "Error", msg)
+        self._set_busy(False, i18n.tr("err_search"))
+        QMessageBox.critical(self, i18n.tr("err_title"), msg)
 
     def _render_cards(self):
         for card in self._cards:
@@ -1256,7 +1272,7 @@ class LauncherWindow(QMainWindow):
         self._cards = []
 
         if not self._mods:
-            empty = QLabel("No se encontraron mods.\nProbá con otros filtros.")
+            empty = QLabel(i18n.tr("empty_search"))
             empty.setObjectName("emptyState")
             empty.setAlignment(Qt.AlignmentFlag.AlignCenter)
             self._explore.grid.addWidget(empty, 0, 0, 1, self._cols)
@@ -1298,7 +1314,7 @@ class LauncherWindow(QMainWindow):
     @pyqtSlot(object)
     def _on_install_req(self, mod: Mod):
         if self._busy: return
-        self._set_busy(True, f"Cargando archivos de {mod.name}…")
+        self._set_busy(True, i18n.tr("loading_files", mod.name))
         w = FetchFilesWorker(self._client, mod)
         w.signals.result.connect(lambda files, m=mod: self._on_files_fetched(m, files))
         w.signals.error.connect(self._on_install_error)
@@ -1307,18 +1323,18 @@ class LauncherWindow(QMainWindow):
     @pyqtSlot(object)
     def _on_files_fetched(self, mod: Mod, files: list[ModFile]):
         if not files:
-            self._set_busy(False, "Sin archivos")
-            QMessageBox.warning(self, "Aviso", "No se encontraron archivos para este mod.")
+            self._set_busy(False, i18n.tr("no_files"))
+            QMessageBox.warning(self, i18n.tr("warn_title"), i18n.tr("no_files_msg"))
             return
         selected = files[0] if len(files) == 1 else None
         if selected is None:
             dlg = FilePickerDialog(mod, files, self)
             if dlg.exec() != QDialog.DialogCode.Accepted:
-                self._set_busy(False, "Cancelado"); return
+                self._set_busy(False, i18n.tr("cancelled")); return
             selected = dlg.selected_file()
         if selected is None:
-            self._set_busy(False, "Cancelado"); return
-        self._set_status(f"Instalando {mod.name}…")
+            self._set_busy(False, i18n.tr("cancelled")); return
+        self._set_status(i18n.tr("installing", mod.name))
         w = InstallWorker(self._client, mod, self._mods_dir(), selected)
         w.signals.result.connect(lambda _: self._on_install_done(mod))
         w.signals.error.connect(self._on_install_error)
@@ -1337,12 +1353,12 @@ class LauncherWindow(QMainWindow):
             pass
         self._refresh_installed(); self._render_cards()
         self._update_installed_tab_badge()
-        self._set_busy(False, "Instalación completada")
+        self._set_busy(False, i18n.tr("install_done"))
 
     @pyqtSlot(str)
     def _on_install_error(self, msg: str):
-        self._set_busy(False, "Error")
-        QMessageBox.critical(self, "Error", msg)
+        self._set_busy(False, i18n.tr("err_title"))
+        QMessageBox.critical(self, i18n.tr("err_title"), msg)
 
     @pyqtSlot(object)
     def _on_remove_card(self, mod: Mod):
@@ -1358,15 +1374,15 @@ class LauncherWindow(QMainWindow):
                 lockfile_store.save(mods_dir, lf)
             self._refresh_installed(); self._render_cards()
             self._update_installed_tab_badge()
-            self._set_status(f"Mod removido: {mod.name}")
+            self._set_status(i18n.tr("mod_removed", mod.name))
         except Exception as exc:
-            QMessageBox.critical(self, "Error", str(exc))
+            QMessageBox.critical(self, i18n.tr("err_title"), str(exc))
 
     @pyqtSlot(object)
     def _on_web(self, mod: Mod):
         url = mod.display_url()
         if url: webbrowser.open(url)
-        else: QMessageBox.information(self, "Info", "No se encontró URL.")
+        else: QMessageBox.information(self, i18n.tr("info_title"), i18n.tr("no_url"))
 
     def _on_installed_changed(self):
         self._refresh_installed(); self._render_cards()
@@ -1382,11 +1398,11 @@ class LauncherWindow(QMainWindow):
     def _update_pager(self):
         total_pages = max(1, math.ceil(self._total / max(self._page_size, 1)))
         self._explore.page_lbl.setText(
-            f"Página {min(self._page + 1, total_pages)}/{total_pages}")
+            i18n.tr("page_fmt", min(self._page + 1, total_pages), total_pages))
 
     def _update_installed_tab_badge(self):
         n = len(self._installed)
-        txt = f"Mis Mods ({n})" if n else "Mis Mods"
+        txt = f"{i18n.tr('tab_installed')} ({n})" if n else i18n.tr("tab_installed")
         self._tab_installed.setText(txt)
 
     def _set_busy(self, busy: bool, status: str):
