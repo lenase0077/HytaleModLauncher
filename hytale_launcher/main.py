@@ -534,7 +534,12 @@ class InstalledPanel(QWidget):
         except Exception:
             lf = lockfile_store.Lockfile()
 
-        refs = list(lf.mods.values())
+        refs = []
+        for mid, ref in lf.mods.items():
+            if not ref.is_managed and ref.mod_id == 0:
+                ref.mod_id = mid
+            refs.append(ref)
+
         if len(refs) == 1:
             self._count_badge.setText(i18n.tr("inst_count_one"))
         else:
@@ -1266,6 +1271,9 @@ class LauncherWindow(QMainWindow):
         QMessageBox.critical(self, i18n.tr("err_title"), msg)
 
     def _render_cards(self):
+        vbar = self._explore.scroll.verticalScrollBar()
+        old_v = vbar.value()
+
         for card in self._cards:
             self._explore.grid.removeWidget(card)
             card.hide(); card.deleteLater()
@@ -1290,6 +1298,10 @@ class LauncherWindow(QMainWindow):
             self._explore.grid.addWidget(card, r, c)
             self._cards.append(card); card.show()
             self._load_image(mod, card)
+
+        # Restore scroll position after rebuilding the grid
+        QApplication.instance().processEvents()
+        vbar.setValue(old_v)
 
     def _load_image(self, mod: Mod, card: ModCard):
         url = mod.logo.thumbnail_url if mod.logo else None
