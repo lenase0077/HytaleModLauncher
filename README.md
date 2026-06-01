@@ -4,15 +4,15 @@ A fast, lightweight, and completely standalone Mod Launcher for Hytale. Powered 
 
 ![Banner](https://github.com/lenase0077/HytaleModLauncher/assets/placeholder_banner.png)
 
-## ✨ Features
+## ⚡Features
 
-- 🌍 **Internationalization (i18n):** Full support for English and Spanish out of the box.
-- 🎨 **Dynamic Themes:** Easily swap between stunning color palettes (*Dark, Dracula, Ocean, Light*).
-- 🔍 **Explore CurseForge:** Browse popular, updated, or most downloaded mods directly from the app.
-- 📦 **One-Click Installs:** No more manual zip extraction. Find a mod and click "Add".
-- 🔄 **Smart Updates:** Click "Check for updates" and the launcher will scan CurseForge for new versions of your installed mods. Update them all with a single click.
-- 🧠 **Fingerprint Scanner:** Did you install mods manually in the past? Just click "Scan folder" and the app will calculate the Murmur2 hash of your `.jar` files to automatically track them with CurseForge.
-- ⚡ **Standalone Executable:** Everything is packaged into a single `.exe`. No Python or extra libraries required.
+- **Internationalization (i18n):** Full support for English and Spanish out of the box.
+- **Dynamic Themes:** Easily swap between stunning color palettes (*Dark, Dracula, Ocean, Light*).
+- **Explore CurseForge:** Browse popular, updated, or most downloaded mods directly from the app.
+- **One-Click Installs:** No more manual zip extraction. Find a mod and click "Add".
+- **Smart Updates:** Click "Check for updates" and the launcher will scan CurseForge for new versions of your installed mods. Update them all with a single click.
+- **Fingerprint Scanner:** Did you install mods manually in the past? Just click "Scan folder" and the app will calculate the Murmur2 hash of your `.jar` files to automatically track them with CurseForge.
+- **Standalone Executable:** Everything is packaged into a single `.exe`. No Python or extra libraries required.
 
 ## 🚀 Download & Run
 
