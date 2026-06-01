@@ -1,5 +1,8 @@
 # Hytale Mod Launcher 🚀
 
+> ⚠️ **Disclaimer: Alpha / Beta Software**  
+> This project is currently in early development (Alpha/Beta phase). You might encounter bugs, unexpected behaviors, or visual glitches. Please report any issues you find!
+
 A fast, lightweight, and completely standalone Mod Launcher for Hytale. Powered by PyQt6 and perfectly integrated with the **CurseForge API** to let you explore, download, and manage your mods without breaking a sweat.
 
 
